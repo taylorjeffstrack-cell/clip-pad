@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Clip Pad — Audio Sampler</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#232326">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clip Pad">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #232326;
+    --panel: #2b2b2f;
+    --panel-alt: #35353a;
+    --line: #3f3f45;
+    --accent: #ff6b35;
+    --accent-dim: rgba(255,107,53,0.18);
+    --mint: #5fd6c0;
+    --danger: #e0524a;
+    --text: #f2ede6;
+    --text-dim: #a9a29c;
+    --font-display: 'Rajdhani', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: calc(32px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior-y: contain;
+  }
+  input, textarea{ -webkit-user-select: text; user-select: text; }
+  ::selection{ background: var(--accent-dim); }
+  button{ font-family: inherit; cursor: pointer; touch-action: manipulation; -webkit-touch-callout: none; }
+  input[type="range"]{ accent-color: var(--accent); }
+  input[type="text"], input[type="password"]{ font-family: inherit; }
+
+  .app{ max-width: 880px; margin: 0 auto; }
+
+  /* ---------- auth screen ---------- */
+  .auth-screen{ min-height: calc(100vh - 112px); display:flex; align-items:center; justify-content:center; }
+  .auth-card{ max-width: 420px; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 32px 28px; text-align: left; }
+  .auth-card .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; display:block; margin-bottom: 6px; }
+  .auth-card h1{ font-family: var(--font-display); font-weight: 700; font-size: 28px; margin: 0 0 10px; }
+  .auth-note{ color: var(--text-dim); font-size: 13px; line-height: 1.5; margin: 0 0 20px; }
+  .auth-tabs{ display:flex; gap: 6px; margin-bottom: 18px; background: var(--panel-alt); border-radius: 8px; padding: 4px; }
+  .auth-tab{ flex:1; text-align:center; padding: 8px 0; border-radius: 6px; border:none; background: transparent; color: var(--text-dim); font-weight: 600; font-size: 13px; }
+  .auth-tab.active{ background: var(--accent); color: #1c1c1e; }
+  .auth-field{ display:flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .auth-field label{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+  .auth-field input{ background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; }
+  .auth-field input:focus{ outline: none; border-color: var(--accent); }
+  .auth-error{ color: var(--danger); font-size: 12.5px; margin: 0 0 14px; min-height: 1em; }
+  .auth-submit{ width: 100%; }
+
+  .btn{ border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em; transition: transform .08s ease, opacity .15s ease, background .15s ease; }
+  .btn:active{ transform: scale(0.97); }
+  .btn-accent{ background: var(--accent); color: #1c1c1e; }
+  .btn-accent:hover{ opacity: 0.92; }
+  .btn-ghost{ background: var(--panel-alt); color: var(--text); border: 1px solid var(--line); }
+  .btn-ghost:hover{ border-color: var(--accent); }
+  .btn-danger{ background: var(--danger); color: #fff; }
+  .btn-danger-ghost{ background: transparent; color: var(--danger); border: 1px solid rgba(224,82,74,0.5); }
+  .btn-danger-ghost:hover{ background: rgba(224,82,74,0.12); }
+  .btn:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+  .account-bar{ display:flex; align-items:center; justify-content: flex-end; gap: 12px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); }
+  .account-bar .account-name{ color: var(--text); font-weight: 600; font-family: var(--font-display); margin-right: auto; font-size: 15px; }
+  .save-status{ font-family: var(--font-mono); font-size: 11px; }
+  .save-status.saving{ color: var(--mint); }
+  .save-status.saved{ color: var(--text-dim); }
+  .save-status.error{ color: var(--danger); }
+
+  header{ margin-bottom: 28px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+  header .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; display:block; margin-bottom: 6px; }
+  header h1{ font-family: var(--font-display); font-weight: 700; font-size: 34px; margin: 0; letter-spacing: 0.01em; }
+  header p{ color: var(--text-dim); margin: 6px 0 0; font-size: 14px; max-width: 560px; }
+
+  .upload-zone{ border: 1.5px dashed var(--line); border-radius: 12px; padding: 34px 20px; text-align: center; background: var(--panel); transition: border-color .15s ease, background .15s ease; margin-bottom: 20px; }
+  .upload-zone.dragging{ border-color: var(--accent); background: var(--panel-alt); }
+  .upload-zone .upload-icon{ font-size: 26px; margin-bottom: 8px; }
+  .upload-zone strong{ font-family: var(--font-display); font-size: 17px; }
+  .upload-zone p{ color: var(--text-dim); font-size: 13px; margin: 6px 0 16px; }
+
+  .files-panel{ margin-bottom: 20px; }
+  .files-header{ display:flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .files-header h2{ font-family: var(--font-display); font-size: 16px; font-weight: 700; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .files-header .files-count{ font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  .files-scroll{ display:flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .file-chip{ position: relative; flex: 0 0 auto; display:flex; flex-direction: column; align-items: flex-start; gap: 2px; background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 30px 8px 12px; min-width: 140px; text-align: left; color: var(--text); transition: border-color .12s ease, background .12s ease; }
+  .file-chip:hover{ border-color: var(--mint); }
+  .file-chip.active{ border-color: var(--accent); background: var(--panel-alt); }
+  .file-chip-name{ font-family: var(--font-display); font-weight: 600; font-size: 13px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip-dur{ font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); }
+  .file-chip-remove{ position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 5px; border: none; background: rgba(0,0,0,0.35); color: var(--text-dim); font-size: 10px; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .file-chip-remove:hover{ color: var(--text); background: rgba(224,82,74,0.5); }
+
+  .waveform-panel{ background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 28px; }
+  .wf-meta{ display:flex; justify-content: space-between; font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+  #fileName{ color: var(--text); }
+  canvas#mainWave{ width: 100%; height: 140px; display: block; border-radius: 8px; cursor: text; touch-action: none; }
+  .wf-controls{ display:flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 10px; }
+  .sel-readout{ font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }
+  .btn-row{ display:flex; gap: 8px; flex-wrap: wrap; }
+  .wf-hint{ font-size: 12px; color: var(--text-dim); margin: 12px 0 0; }
+
+  .pads-section{ margin-top: 8px; }
+  .pads-header{ display:flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .pads-header h2{ font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 0; }
+  .empty-hint{ color: var(--text-dim); font-size: 13px; padding: 0 0 12px; }
+
+  .pads-scroll{ overflow-x: auto; padding-bottom: 6px; }
+  .pads-grid{ display: grid; grid-template-columns: repeat(5, 84px); grid-auto-rows: 84px; gap: 10px; width: max-content; }
+  .pad{ position: relative; --pad-color: #ff6b35; width: 84px; height: 84px; }
+  .pad-play{ width: 100%; height: 100%; border-radius: 8px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--panel-alt), var(--panel)); border-top: 3px solid var(--pad-color); color: var(--text); display:flex; align-items:center; justify-content: center; padding: 4px; position: relative; overflow: hidden; text-align: center; box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset; transition: transform .06s ease, box-shadow .15s ease, opacity .15s ease; }
+  .pad-play:hover{ box-shadow: 0 0 0 1px var(--pad-color) inset; }
+  .pad-play:active{ transform: translateY(1px); }
+  .pad.playing .pad-play{ box-shadow: 0 0 0 2px var(--pad-color) inset, 0 0 14px var(--pad-color); }
+  .pad.unassigned .pad-play{ opacity: 0.4; border-top-color: var(--line); }
+  .pad-name{ font-family: var(--font-display); font-weight: 600; font-size: 15px; line-height: 1.2; word-break: break-word; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .pad-progress{ position: absolute; left:0; top:0; bottom:0; width:0%; background: var(--pad-color); opacity: 0.2; transition: width .05s linear; }
+  .icon-btn{ width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: rgba(0,0,0,0.35); color: var(--text-dim); font-size: 12px; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .icon-btn:hover{ color: var(--text); border-color: var(--accent); }
+  .pad-tools{ position: absolute; top: 2px; right: 2px; display:flex; gap: 4px; }
+  .pad-tools .icon-btn{ width: 20px; height: 20px; border-radius: 5px; border: none; background: rgba(0,0,0,0.4); color: var(--text-dim); font-size: 11px; }
+
+  @media (min-width: 620px){
+    .pads-grid{ grid-template-columns: repeat(5, 100px); grid-auto-rows: 100px; }
+    .pad{ width: 100px; height: 100px; }
+  }
+
+  .drawer-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity .18s ease; z-index: 20; }
+  .drawer-backdrop.open{ opacity: 1; pointer-events: auto; }
+  .drawer{ position: fixed; top: 0; right: 0; height: 100%; width: min(360px, 92vw); background: var(--panel); border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .2s ease; z-index: 21; display:flex; flex-direction: column; }
+  .drawer.open{ transform: translateX(0); }
+  .drawer-head{ display:flex; justify-content: space-between; align-items:center; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .drawer-head h3{ font-family: var(--font-display); margin:0; font-size: 18px; }
+  .drawer-body{ padding: 16px 18px; overflow-y: auto; display:flex; flex-direction: column; gap: 16px; }
+  .drawer-body label{ display:flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+  .drawer-body input[type="text"]{ background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; color: var(--text); font-size: 14px; font-family: var(--font-body); }
+  .drawer-body input[type="text"]:focus{ outline: none; border-color: var(--accent); }
+  canvas#editWave{ width: 100%; height: 80px; border-radius: 8px; touch-action: none; }
+  .trim-readout{ font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .source-row{ font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: none; letter-spacing: 0; font-weight: 400; background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .swatches{ display:flex; gap: 8px; }
+  .swatch{ width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; }
+  .swatch.selected{ border-color: var(--text); }
+  .slider-row{ display:flex; align-items:center; gap: 10px; }
+  .slider-row input[type="range"]{ flex:1; }
+  .checkbox-row{ flex-direction: row !important; align-items:center; gap: 8px; text-transform: none; font-size: 13px; }
+  .drawer-actions{ margin-top: auto; padding-top: 8px; }
+  .drawer-actions .btn{ width: 100%; }
+
+  @media (max-width: 480px){ header h1{ font-size: 26px; } }
+</style>
+</head>
+<body>
+
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <span class="eyebrow">Clip Pad</span>
+    <h1>Audio Sampler</h1>
+    <p class="auth-note">Create an account to save your sounds and pad setups, and pick up the same workspace from any device by logging in with the same username and password.</p>
+
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" id="tabLogin">Log in</button>
+      <button type="button" class="auth-tab" id="tabSignup">Create account</button>
+    </div>
+
+    <div class="auth-field">
+      <label>Username</label>
+      <input type="text" id="authUsername" maxlength="40" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="authPassword" maxlength="100" autocomplete="current-password">
+    </div>
+    <p class="auth-error" id="authError"></p>
+    <button class="btn btn-accent auth-submit" id="authSubmit">Log in</button>
+  </div>
+</div>
+
+<div class="app" id="mainApp" hidden>
+  <div class="account-bar" id="accountBar">
+    <span class="account-name" id="accountName"></span>
+    <span class="save-status" id="saveStatus"></span>
+    <button class="btn btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+
+  <header>
+    <span class="eyebrow">Clip Pad</span>
+    <h1>Audio Sampler</h1>
+    <p>Upload audio clips, trim them on a waveform, and assign them to a pad grid. Everything saves to your account automatically and follows you to any device you log in on.</p>
+  </header>
+
+  <section class="upload-zone" id="uploadZone">
+    <div class="upload-icon">🎧</div>
+    <strong>Drop audio files here</strong>
+    <p>or click to browse — MP3, WAV, M4A, OGG (keep clips under ~3MB each)</p>
+    <button class="btn btn-accent" id="browseBtn">Choose files</button>
+    <input type="file" id="fileInput" accept="audio/*" multiple hidden>
+  </section>
+
+  <section class="files-panel" id="filesPanel" hidden>
+    <div class="files-header">
+      <h2>Uploaded files</h2>
+      <span class="files-count" id="filesCount">0 files</span>
+    </div>
+    <div class="files-scroll" id="filesScroll"></div>
+  </section>
+
+  <section class="waveform-panel" id="waveformPanel" hidden>
+    <div class="wf-meta">
+      <span id="fileName">—</span>
+      <span id="fileDuration">0:00.00</span>
+    </div>
+    <canvas id="mainWave"></canvas>
+    <div class="wf-controls">
+      <div class="sel-readout" id="selReadout">Selection: 0:00.00 – 0:00.00</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="playSelBtn">▶ Preview</button>
+        <button class="btn btn-ghost" id="clearSelBtn">Reset selection</button>
+      </div>
+    </div>
+    <p class="wf-hint">Tip: pick the active file above, select a region on its waveform, then open any pad's edit panel below and click "Use current selection" to assign it.</p>
+  </section>
+
+  <section class="pads-section">
+    <div class="pads-header">
+      <h2>Pads</h2>
+      <button class="btn btn-danger-ghost" id="stopAllBtn">Stop all</button>
+    </div>
+    <p class="empty-hint" id="emptyHint">Upload one or more clips above, then assign them to pads via each pad's edit panel (⚙).</p>
+    <div class="pads-scroll" id="padsScroll">
+      <div class="pads-grid" id="padsGrid"></div>
+    </div>
+  </section>
+</div>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="editDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3>Edit pad</h3>
+    <button class="icon-btn" id="closeDrawerBtn">✕</button>
+  </div>
+  <div class="drawer-body">
+    <label>Name<input type="text" id="editName" maxlength="40"></label>
+    <label>Color<div class="swatches" id="colorSwatches"></div></label>
+    <label>Source file<div class="source-row" id="sourceRow">No file assigned</div></label>
+    <label>Trim
+      <canvas id="editWave"></canvas>
+      <div class="trim-readout" id="trimReadout"></div>
+    </label>
+    <label>Volume
+      <div class="slider-row">
+        <input type="range" id="editVol" min="0" max="1.5" step="0.01">
+        <span id="volVal" style="font-family:var(--font-mono); font-size:11px; width:38px;">100%</span>
+      </div>
+    </label>
+    <label>Speed
+      <div class="slider-row">
+        <input type="range" id="editRate" min="0.5" max="2" step="0.01">
+        <span id="rateVal" style="font-family:var(--font-mono); font-size:11px; width:38px;">1.00x</span>
+      </div>
+    </label>
+    <label class="checkbox-row"><input type="checkbox" id="editLoop"> Loop playback</label>
+    <div class="drawer-actions">
+      <button class="btn btn-ghost" id="useSelectionBtn" style="width:100%; margin-bottom:8px;">Use current selection</button>
+      <button class="btn btn-danger-ghost" id="resetPadBtn" style="width:100%;">Reset pad to default</button>
+    </div>
+  </div>
+</aside>
+
+<script>
+(function(){
+  const PALETTE = ['#ff6b35','#5fd6c0','#e8b23d','#e0524a','#4f9dd9','#9b7fd4'];
+  const GRID_ROWS = 8, GRID_COLS = 5, PAD_COUNT = GRID_ROWS * GRID_COLS;
+  const SAVE_DEBOUNCE_MS = 700;
+  const TOKEN_KEY = 'clippad_token';
+  const NAME_KEY = 'clippad_username';
+
+  // ---------- state ----------
+  let audioCtx = null;
+  let files = [];           // {id, name, buffer, duration, peaks, url}
+  let activeFileId = null;
+  let duration = 0;
+  let peaksMain = [];
+  let selection = { start: 0, end: 0 };
+  let pads = [];
+  let padEls = new Map();
+  let activeSources = {};
+  let editingPadId = null;
+  let authToken = null;
+  let authUsername = null;
+  let authMode = 'login';
+  let saveTimer = null;
+
+  // ---------- helpers ----------
+  function fmt(t){
+    if(!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t/60);
+    const s = Math.floor(t%60);
+    const cs = Math.floor((t%1)*100);
+    return m + ':' + String(s).padStart(2,'0') + '.' + String(cs).padStart(2,'0');
+  }
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+  function uid(prefix){ return (prefix||'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function getPad(id){ return pads.find(p => p.id === id); }
+  function getFile(id){ return files.find(f => f.id === id); }
+  function ensureAudioCtx(){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  // ---------- API helper ----------
+  async function api(path, options){
+    options = options || {};
+    const headers = Object.assign({}, options.headers || {});
+    if(options.body && !(options.body instanceof FormData)){
+      headers['Content-Type'] = 'application/json';
+    }
+    if(authToken) headers['Authorization'] = 'Bearer ' + authToken;
+
+    const res = await fetch(path, Object.assign({}, options, { headers }));
+    let data = null;
+    try{ data = await res.json(); } catch(e){ data = null; }
+    if(!res.ok){
+      const err = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        const base64 = result.slice(result.indexOf(',') + 1);
+        resolve(base64);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function decodeArrayBuffer(arrayBuffer){
+    return new Promise((resolve, reject) => {
+      ensureAudioCtx();
+      audioCtx.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+    });
+  }
+
+  // ---------- waveform peaks + drawing ----------
+  function computePeaks(buffer, numPeaks){
+    const data = buffer.getChannelData(0);
+    const blockSize = Math.max(1, Math.floor(data.length / numPeaks));
+    const peaks = [];
+    for(let i=0;i<numPeaks;i++){
+      let min = 1, max = -1;
+      const start = i * blockSize;
+      const end = Math.min(start + blockSize, data.length);
+      for(let j=start;j<end;j++){
+        const v = data[j];
+        if(v < min) min = v;
+        if(v > max) max = v;
+      }
+      if(end <= start){ min = 0; max = 0; }
+      peaks.push({min, max});
+    }
+    return peaks;
+  }
+
+  function drawWave(canvas, peaks, dur, range, accentColor){
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const cssHeight = canvas.clientHeight || 100;
+    if(canvas.width !== Math.round(rect.width*dpr) || canvas.height !== Math.round(cssHeight*dpr)){
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(cssHeight * dpr);
+    }
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const w = rect.width, h = cssHeight;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillRect(0,0,w,h);
+    if(!peaks.length || dur <= 0){ return; }
+
+    const mid = h/2;
+    const step = w / peaks.length;
+    const sx = (range.start/dur) * w;
+    const ex = (range.end/dur) * w;
+
+    ctx.fillStyle = (accentColor || '#ff6b35') + '26';
+    ctx.fillRect(sx, 0, Math.max(ex - sx, 0), h);
+
+    ctx.fillStyle = '#cfcac3';
+    for(let i=0;i<peaks.length;i++){
+      const {min, max} = peaks[i];
+      const x = i * step;
+      const y1 = mid + min * mid * 0.9;
+      const y2 = mid + max * mid * 0.9;
+      ctx.fillRect(x, y1, Math.max(step - 0.5, 1), Math.max(y2 - y1, 1));
+    }
+
+    ctx.fillStyle = accentColor || '#ff6b35';
+    [sx, ex].forEach(x => {
+      ctx.fillRect(x - 1, 0, 2, h);
+      ctx.beginPath();
+      ctx.arc(x, h/2, 6, 0, Math.PI*2);
+      ctx.fill();
+    });
+  }
+
+  function attachDrag(canvas, durationGetter, rangeGetter, rangeSetter, redraw, onCommit){
+    let mode = null;
+    const HANDLE_PX = 10;
+    function clientX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+    function xToTime(cx){
+      const dur = durationGetter();
+      const rect = canvas.getBoundingClientRect();
+      const frac = Math.min(Math.max((cx - rect.left) / rect.width, 0), 1);
+      return frac * dur;
+    }
+    function timeToX(t){
+      const dur = durationGetter();
+      const rect = canvas.getBoundingClientRect();
+      return dur > 0 ? (t/dur) * rect.width : 0;
+    }
+    function down(e){
+      const dur = durationGetter();
+      if(dur <= 0) return;
+      const cx = clientX(e);
+      const range = rangeGetter();
+      const sx = timeToX(range.start), ex = timeToX(range.end);
+      const rectX = cx - canvas.getBoundingClientRect().left;
+      if(Math.abs(rectX - sx) <= HANDLE_PX){ mode = 'start'; }
+      else if(Math.abs(rectX - ex) <= HANDLE_PX){ mode = 'end'; }
+      else { mode = 'new'; rangeSetter({start: xToTime(cx), end: xToTime(cx)}); }
+      e.preventDefault();
+    }
+    function move(e){
+      if(!mode) return;
+      const dur = durationGetter();
+      const cx = clientX(e);
+      const t = xToTime(cx);
+      const range = rangeGetter();
+      let start = range.start, end = range.end;
+      if(mode === 'start'){ start = Math.min(t, end - 0.01); if(start < 0) start = 0; }
+      else if(mode === 'end'){ end = Math.max(t, start + 0.01); if(end > dur) end = dur; }
+      else if(mode === 'new'){ end = t; }
+      rangeSetter({start, end});
+      redraw();
+      e.preventDefault();
+    }
+    function up(){
+      if(!mode) return;
+      if(mode === 'new'){
+        const range = rangeGetter();
+        if(range.end < range.start) rangeSetter({start: range.end, end: range.start});
+      }
+      mode = null;
+      redraw();
+      if(onCommit) onCommit();
+    }
+    canvas.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, {passive:false});
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', up);
+  }
+
+  // ---------- DOM refs ----------
+  const authScreen = document.getElementById('authScreen');
+  const mainApp = document.getElementById('mainApp');
+  const tabLogin = document.getElementById('tabLogin');
+  const tabSignup = document.getElementById('tabSignup');
+  const authUsernameEl = document.getElementById('authUsername');
+  const authPasswordEl = document.getElementById('authPassword');
+  const authError = document.getElementById('authError');
+  const authSubmit = document.getElementById('authSubmit');
+  const accountName = document.getElementById('accountName');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const browseBtn = document.getElementById('browseBtn');
+  const filesPanel = document.getElementById('filesPanel');
+  const filesScroll = document.getElementById('filesScroll');
+  const filesCount = document.getElementById('filesCount');
+  const waveformPanel = document.getElementById('waveformPanel');
+  const mainWave = document.getElementById('mainWave');
+  const fileNameEl = document.getElementById('fileName');
+  const fileDurationEl = document.getElementById('fileDuration');
+  const selReadout = document.getElementById('selReadout');
+  const playSelBtn = document.getElementById('playSelBtn');
+  const clearSelBtn = document.getElementById('clearSelBtn');
+  const padsGrid = document.getElementById('padsGrid');
+  const emptyHint = document.getElementById('emptyHint');
+  const stopAllBtn = document.getElementById('stopAllBtn');
+
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
+  const editDrawer = document.getElementById('editDrawer');
+  const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+  const editName = document.getElementById('editName');
+  const colorSwatches = document.getElementById('colorSwatches');
+  const sourceRow = document.getElementById('sourceRow');
+  const editWave = document.getElementById('editWave');
+  const trimReadout = document.getElementById('trimReadout');
+  const editVol = document.getElementById('editVol');
+  const volVal = document.getElementById('volVal');
+  const editRate = document.getElementById('editRate');
+  const rateVal = document.getElementById('rateVal');
+  const editLoop = document.getElementById('editLoop');
+  const useSelectionBtn = document.getElementById('useSelectionBtn');
+  const resetPadBtn = document.getElementById('resetPadBtn');
+
+  // ---------- auth flow ----------
+  function setAuthMode(mode){
+    authMode = mode;
+    tabLogin.classList.toggle('active', mode === 'login');
+    tabSignup.classList.toggle('active', mode === 'signup');
+    authSubmit.textContent = mode === 'login' ? 'Log in' : 'Create account';
+    authPasswordEl.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+    authError.textContent = '';
+  }
+  tabLogin.addEventListener('click', () => setAuthMode('login'));
+  tabSignup.addEventListener('click', () => setAuthMode('signup'));
+
+  async function submitAuth(){
+    const username = authUsernameEl.value.trim();
+    const password = authPasswordEl.value;
+    authError.textContent = '';
+
+    if(!username || !password){
+      authError.textContent = 'Enter a username and password.';
+      return;
+    }
+    authSubmit.disabled = true;
+    const prevLabel = authSubmit.textContent;
+    authSubmit.textContent = authMode === 'login' ? 'Logging in…' : 'Creating account…';
+
+    try{
+      const data = await api('/api/' + authMode, {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      authToken = data.token;
+      authUsername = data.username;
+      localStorage.setItem(TOKEN_KEY, authToken);
+      localStorage.setItem(NAME_KEY, authUsername);
+      await enterWorkspace();
+    } catch(err){
+      authError.textContent = err.message;
+    } finally {
+      authSubmit.disabled = false;
+      authSubmit.textContent = prevLabel;
+    }
+  }
+  authSubmit.addEventListener('click', submitAuth);
+  authPasswordEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') submitAuth(); });
+  authUsernameEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') authPasswordEl.focus(); });
+
+  function setSaveStatus(state){
+    const el = document.getElementById('saveStatus');
+    if(!el) return;
+    el.classList.remove('saving','saved','error');
+    if(state === 'saving'){ el.textContent = 'Saving…'; el.classList.add('saving'); }
+    else if(state === 'saved'){ el.textContent = 'Saved'; el.classList.add('saved'); }
+    else if(state === 'error'){ el.textContent = 'Save failed'; el.classList.add('error'); }
+    else { el.textContent = ''; }
+  }
+
+  async function performSave(){
+    if(!authToken) return;
+    setSaveStatus('saving');
+    try{
+      await api('/api/pads', {
+        method: 'POST',
+        body: JSON.stringify({
+          pads: pads.map(p => ({
+            id: p.id, name: p.name, color: p.color, fileId: p.fileId,
+            start: p.start, end: p.end, volume: p.volume, rate: p.rate, loop: p.loop
+          }))
+        })
+      });
+      setSaveStatus('saved');
+    } catch(err){
+      setSaveStatus('error');
+    }
+  }
+  function scheduleSave(){
+    if(!authToken) return;
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { saveTimer = null; performSave(); }, SAVE_DEBOUNCE_MS);
+  }
+  function flushSave(){
+    if(saveTimer){ clearTimeout(saveTimer); saveTimer = null; performSave(); }
+  }
+
+  function showApp(){ authScreen.hidden = true; mainApp.hidden = false; }
+  function showAuth(){
+    mainApp.hidden = true;
+    authScreen.hidden = false;
+    authPasswordEl.value = '';
+    authError.textContent = '';
+    setAuthMode('login');
+    authUsernameEl.focus();
+  }
+
+  function resetWorkspaceState(){
+    stopAll();
+    files = [];
+    activeFileId = null;
+    duration = 0;
+    peaksMain = [];
+    selection = { start: 0, end: 0 };
+    filesPanel.hidden = true;
+    waveformPanel.hidden = true;
+    closeEditor();
+  }
+
+  async function enterWorkspace(){
+    accountName.textContent = authUsername;
+    setSaveStatus('');
+    resetWorkspaceState();
+
+    let workspace;
+    try{
+      workspace = await api('/api/workspace', { method: 'GET' });
+    } catch(err){
+      // token invalid/expired
+      authToken = null; authUsername = null;
+      localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NAME_KEY);
+      showAuth();
+      authError.textContent = 'Your session expired. Please log in again.';
+      return;
+    }
+
+    // Fetch and decode each saved file
+    const remoteFiles = workspace.files || [];
+    const decodePromises = remoteFiles.map(async (rf) => {
+      try{
+        const resp = await fetch(rf.url);
+        const arrayBuffer = await resp.arrayBuffer();
+        const buffer = await decodeArrayBuffer(arrayBuffer);
+        files.push({
+          id: rf.id, name: rf.name, buffer,
+          duration: buffer.duration, peaks: computePeaks(buffer, 800), url: rf.url
+        });
+      } catch(e){ /* skip files that fail to load/decode */ }
+    });
+    await Promise.all(decodePromises);
+    renderFileChips();
+    filesPanel.hidden = files.length === 0;
+
+    if(workspace.pads && workspace.pads.length === PAD_COUNT){
+      pads = workspace.pads.map(p => ({ ...p }));
+    } else {
+      pads = Array.from({ length: PAD_COUNT }, (_, i) => defaultPad(i));
+    }
+    padEls.clear();
+    padsGrid.innerHTML = '';
+    pads.forEach(p => padsGrid.appendChild(createPadElement(p)));
+
+    if(files.length) setActiveFile(files[0].id);
+    showApp();
+  }
+
+  async function logout(){
+    flushSave();
+    try{ await api('/api/logout', { method: 'POST' }); } catch(e){ /* best effort */ }
+    authToken = null; authUsername = null;
+    localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NAME_KEY);
+    resetWorkspaceState();
+    pads = []; padEls.clear(); padsGrid.innerHTML = '';
+    showAuth();
+  }
+  logoutBtn.addEventListener('click', logout);
+
+  // ---------- file loading (multi-file library, backed by Vercel Blob) ----------
+  async function handleFiles(fileList){
+    const arr = Array.from(fileList || []).filter(f => f && f.size > 0);
+    if(!arr.length) return;
+    for(const file of arr){
+      const localId = uid('f');
+      try{
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = await decodeArrayBuffer(arrayBuffer);
+        const entry = {
+          id: localId, name: file.name, buffer,
+          duration: buffer.duration, peaks: computePeaks(buffer, 800), url: null
+        };
+        files.push(entry);
+        renderFileChips();
+        filesPanel.hidden = false;
+        if(!activeFileId) setActiveFile(entry.id);
+      } catch(err){
+        alert('Could not decode "' + file.name + '". Try a different file format (MP3, WAV, M4A, OGG).');
+        continue;
+      }
+
+      // Upload to the backend in the background
+      try{
+        const dataBase64 = await fileToBase64(file);
+        const result = await api('/api/files', {
+          method: 'POST',
+          body: JSON.stringify({ id: localId, name: file.name, mimeType: file.type, dataBase64 })
+        });
+        const entry = getFile(localId);
+        if(entry) entry.url = result.url;
+      } catch(err){
+        alert('"' + file.name + '" loaded for this session but could not be saved: ' + err.message);
+      }
+    }
+  }
+
+  function setActiveFile(id){
+    const f = getFile(id);
+    activeFileId = f ? f.id : null;
+    duration = f ? f.duration : 0;
+    peaksMain = f ? f.peaks : [];
+    selection = { start: 0, end: duration };
+    if(f){
+      fileNameEl.textContent = f.name;
+      fileDurationEl.textContent = fmt(f.duration);
+      waveformPanel.hidden = false;
+    } else {
+      waveformPanel.hidden = true;
+    }
+    updateSelReadout();
+    redrawMain();
+    renderFileChips();
+  }
+
+  function renderFileChips(){
+    filesScroll.innerHTML = '';
+    filesCount.textContent = files.length + (files.length === 1 ? ' file' : ' files');
+    files.forEach(f => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'file-chip' + (f.id === activeFileId ? ' active' : '');
+      chip.innerHTML =
+        '<span class="file-chip-name"></span>' +
+        '<span class="file-chip-dur"></span>' +
+        '<span class="file-chip-remove" title="Remove file">✕</span>';
+      chip.querySelector('.file-chip-name').textContent = f.name;
+      chip.querySelector('.file-chip-dur').textContent = fmt(f.duration);
+      chip.addEventListener('click', (e) => {
+        if(e.target.closest('.file-chip-remove')) return;
+        setActiveFile(f.id);
+      });
+      chip.querySelector('.file-chip-remove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeFile(f.id);
+      });
+      filesScroll.appendChild(chip);
+    });
+  }
+
+  async function removeFile(id){
+    const entry = getFile(id);
+    files = files.filter(f => f.id !== id);
+    pads.forEach(p => {
+      if(p.fileId === id){
+        p.fileId = null; p.start = 0; p.end = 0;
+        stopPad(p.id); updatePadDOM(p);
+        if(editingPadId === p.id) populateEditor(p);
+      }
+    });
+    if(activeFileId === id){
+      const next = files[0];
+      setActiveFile(next ? next.id : null);
+    } else {
+      renderFileChips();
+    }
+    if(files.length === 0) filesPanel.hidden = true;
+
+    if(entry && entry.url){
+      try{ await api('/api/files', { method: 'DELETE', body: JSON.stringify({ fileId: id }) }); }
+      catch(err){ /* file is removed locally regardless */ }
+    }
+    scheduleSave();
+  }
+
+  browseBtn.addEventListener('click', () => fileInput.click());
+  uploadZone.addEventListener('click', (e) => { if(e.target === browseBtn) return; fileInput.click(); });
+  fileInput.addEventListener('change', (e) => { handleFiles(e.target.files); fileInput.value = ''; });
+  ['dragenter','dragover'].forEach(evt => uploadZone.addEventListener(evt, (e) => { e.preventDefault(); uploadZone.classList.add('dragging'); }));
+  ['dragleave','drop'].forEach(evt => uploadZone.addEventListener(evt, (e) => { e.preventDefault(); uploadZone.classList.remove('dragging'); }));
+  uploadZone.addEventListener('drop', (e) => { handleFiles(e.dataTransfer.files); });
+
+  // ---------- main waveform ----------
+  function redrawMain(){ drawWave(mainWave, peaksMain, duration, selection, '#ff6b35'); }
+  function updateSelReadout(){
+    selReadout.textContent = 'Selection: ' + fmt(selection.start) + ' – ' + fmt(selection.end) + '  (' + fmt(selection.end - selection.start) + ')';
+  }
+  attachDrag(mainWave, () => duration, () => selection, (r) => { selection = r; updateSelReadout(); }, redrawMain);
+  window.addEventListener('resize', () => { redrawMain(); if(editingPadId) redrawEdit(); });
+
+  playSelBtn.addEventListener('click', () => {
+    const file = getFile(activeFileId);
+    if(!file) return;
+    if(selection.end - selection.start < 0.02) return;
+    ensureAudioCtx();
+    const source = audioCtx.createBufferSource();
+    source.buffer = file.buffer;
+    const gain = audioCtx.createGain();
+    gain.gain.value = 1;
+    source.connect(gain).connect(audioCtx.destination);
+    source.start(0, selection.start, selection.end - selection.start);
+  });
+  clearSelBtn.addEventListener('click', () => {
+    if(!activeFileId) return;
+    selection = { start: 0, end: duration };
+    updateSelReadout();
+    redrawMain();
+  });
+
+  // ---------- pads ----------
+  function defaultPad(i){
+    return { id: 'p' + i, name: String(i + 1), color: PALETTE[i % PALETTE.length], fileId: null, start: 0, end: 0, volume: 1, rate: 1, loop: false };
+  }
+
+  function resetPad(id){
+    const idx = pads.findIndex(p => p.id === id);
+    if(idx === -1) return;
+    stopPad(id);
+    pads[idx] = defaultPad(idx);
+    updatePadDOM(pads[idx]);
+    if(editingPadId === id) populateEditor(pads[idx]);
+    scheduleSave();
+  }
+
+  function createPadElement(pad){
+    const div = document.createElement('div');
+    div.className = 'pad';
+    div.dataset.id = pad.id;
+    div.style.setProperty('--pad-color', pad.color);
+    div.innerHTML =
+      '<button class="pad-play" aria-label="Play ' + escapeHtml(pad.name) + '">' +
+        '<span class="pad-progress"></span>' +
+        '<span class="pad-name"></span>' +
+      '</button>' +
+      '<div class="pad-tools"><button class="icon-btn edit-btn" title="Edit">⚙</button></div>';
+
+    const refs = {
+      root: div,
+      playBtn: div.querySelector('.pad-play'),
+      nameEl: div.querySelector('.pad-name'),
+      progressEl: div.querySelector('.pad-progress')
+    };
+    padEls.set(pad.id, refs);
+    updatePadDOM(pad);
+
+    refs.playBtn.addEventListener('click', () => playPad(pad.id));
+    div.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); openEditor(pad.id); });
+    return div;
+  }
+
+  function updatePadDOM(pad){
+    const refs = padEls.get(pad.id);
+    if(!refs) return;
+    refs.root.style.setProperty('--pad-color', pad.color);
+    refs.nameEl.textContent = pad.name;
+    refs.root.classList.toggle('unassigned', !pad.fileId);
+    refs.playBtn.setAttribute('aria-label', 'Play ' + pad.name);
+    const file = pad.fileId ? getFile(pad.fileId) : null;
+    refs.playBtn.title = file
+      ? (pad.name + ' — ' + file.name + ' (' + fmt((pad.end - pad.start) / pad.rate) + ')')
+      : (pad.name + ' — no file assigned');
+  }
+
+  // ---------- playback ----------
+  function playPad(id){
+    const pad = getPad(id);
+    if(!pad || !pad.fileId) return;
+    const file = getFile(pad.fileId);
+    if(!file) return;
+    stopPad(id);
+    ensureAudioCtx();
+    const source = audioCtx.createBufferSource();
+    source.buffer = file.buffer;
+    source.playbackRate.value = pad.rate;
+    const gain = audioCtx.createGain();
+    gain.gain.value = pad.volume;
+    source.connect(gain).connect(audioCtx.destination);
+
+    const dur = pad.end - pad.start;
+    if(dur <= 0) return;
+    const info = { source, startedAt: audioCtx.currentTime, dur, rate: pad.rate, loop: pad.loop };
+    activeSources[id] = info;
+
+    source.onended = () => {
+      if(activeSources[id] === info){
+        delete activeSources[id];
+        const refs = padEls.get(id);
+        if(refs){ refs.root.classList.remove('playing'); refs.progressEl.style.width = '0%'; }
+      }
+    };
+
+    if(pad.loop){
+      source.loop = true; source.loopStart = pad.start; source.loopEnd = pad.end;
+      source.start(0, pad.start);
+    } else {
+      source.start(0, pad.start, dur);
+    }
+    const refs = padEls.get(id);
+    if(refs) refs.root.classList.add('playing');
+  }
+
+  function stopPad(id){
+    const info = activeSources[id];
+    if(info){ try{ info.source.stop(); } catch(e){} }
+  }
+  function stopAll(){ Object.keys(activeSources).forEach(stopPad); }
+  stopAllBtn.addEventListener('click', stopAll);
+
+  (function tick(){
+    for(const id in activeSources){
+      const info = activeSources[id];
+      const elapsed = (audioCtx.currentTime - info.startedAt) * info.rate;
+      const frac = info.loop ? (elapsed % info.dur) / info.dur : Math.min(elapsed / info.dur, 1);
+      const refs = padEls.get(id);
+      if(refs) refs.progressEl.style.width = (frac * 100) + '%';
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  // ---------- editor drawer ----------
+  function redrawEdit(){
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    const file = pad.fileId ? getFile(pad.fileId) : null;
+    if(!file){ drawWave(editWave, [], 0, {start:0,end:0}, pad.color); return; }
+    drawWave(editWave, file.peaks, file.duration, {start: pad.start, end: pad.end}, pad.color);
+  }
+  attachDrag(
+    editWave,
+    () => { const p = getPad(editingPadId); const f = p && p.fileId ? getFile(p.fileId) : null; return f ? f.duration : 0; },
+    () => { const p = getPad(editingPadId); return p ? {start:p.start, end:p.end} : {start:0,end:0}; },
+    (r) => {
+      const p = getPad(editingPadId);
+      if(!p || !p.fileId) return;
+      p.start = r.start; p.end = r.end;
+      trimReadout.textContent = fmt(p.start) + ' – ' + fmt(p.end) + '  (' + fmt(p.end - p.start) + ')';
+      updatePadDOM(p);
+    },
+    redrawEdit,
+    () => scheduleSave()
+  );
+
+  function buildSwatches(pad){
+    colorSwatches.innerHTML = '';
+    PALETTE.forEach(color => {
+      const b = document.createElement('button');
+      b.className = 'swatch' + (color === pad.color ? ' selected' : '');
+      b.style.background = color;
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        pad.color = color;
+        buildSwatches(pad);
+        updatePadDOM(pad);
+        redrawEdit();
+        scheduleSave();
+      });
+      colorSwatches.appendChild(b);
+    });
+  }
+
+  function populateEditor(pad){
+    editName.value = pad.name;
+    buildSwatches(pad);
+    const file = pad.fileId ? getFile(pad.fileId) : null;
+    if(file){
+      sourceRow.textContent = file.name;
+      trimReadout.textContent = fmt(pad.start) + ' – ' + fmt(pad.end) + '  (' + fmt(pad.end - pad.start) + ')';
+    } else {
+      sourceRow.textContent = 'No file assigned — select a region above, then click "Use current selection."';
+      trimReadout.textContent = '';
+    }
+    editVol.value = pad.volume;
+    volVal.textContent = Math.round(pad.volume * 100) + '%';
+    editRate.value = pad.rate;
+    rateVal.textContent = pad.rate.toFixed(2) + 'x';
+    editLoop.checked = pad.loop;
+    requestAnimationFrame(redrawEdit);
+  }
+
+  function openEditor(id){
+    const pad = getPad(id);
+    if(!pad) return;
+    editingPadId = id;
+    populateEditor(pad);
+    editDrawer.classList.add('open');
+    editDrawer.setAttribute('aria-hidden', 'false');
+    drawerBackdrop.classList.add('open');
+  }
+  function closeEditor(){
+    editDrawer.classList.remove('open');
+    editDrawer.setAttribute('aria-hidden', 'true');
+    drawerBackdrop.classList.remove('open');
+    editingPadId = null;
+  }
+  closeDrawerBtn.addEventListener('click', closeEditor);
+  drawerBackdrop.addEventListener('click', closeEditor);
+
+  editName.addEventListener('input', () => {
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    pad.name = editName.value || 'Pad';
+    updatePadDOM(pad);
+    scheduleSave();
+  });
+  editVol.addEventListener('input', () => {
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    pad.volume = parseFloat(editVol.value);
+    volVal.textContent = Math.round(pad.volume * 100) + '%';
+    scheduleSave();
+  });
+  editRate.addEventListener('input', () => {
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    pad.rate = parseFloat(editRate.value);
+    rateVal.textContent = pad.rate.toFixed(2) + 'x';
+    updatePadDOM(pad);
+    scheduleSave();
+  });
+  editLoop.addEventListener('change', () => {
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    pad.loop = editLoop.checked;
+    scheduleSave();
+  });
+  useSelectionBtn.addEventListener('click', () => {
+    const pad = getPad(editingPadId);
+    if(!pad) return;
+    if(!activeFileId){ alert('Upload a file first.'); return; }
+    if(selection.end - selection.start < 0.02){ alert('Select a longer region on the waveform first.'); return; }
+    pad.fileId = activeFileId;
+    pad.start = selection.start;
+    pad.end = selection.end;
+    updatePadDOM(pad);
+    populateEditor(pad);
+    scheduleSave();
+  });
+  resetPadBtn.addEventListener('click', () => { if(editingPadId) resetPad(editingPadId); });
+
+  window.addEventListener('beforeunload', () => { if(saveTimer) performSave(); });
+
+  // ---------- boot ----------
+  (async function boot(){
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    const savedName = localStorage.getItem(NAME_KEY);
+    if(savedToken && savedName){
+      authToken = savedToken;
+      authUsername = savedName;
+      await enterWorkspace();
+    } else {
+      showAuth();
+    }
+
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      });
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>

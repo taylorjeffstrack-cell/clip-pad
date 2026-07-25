@@ -1,0 +1,10 @@
+{
+  "name": "clip-pad-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Clip Pad audio sampler with account-based cross-device storage on Vercel",
+  "dependencies": {
+    "@upstash/redis": "latest",
+    "@vercel/blob": "latest"
+  }
+}
